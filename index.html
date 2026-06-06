@@ -121,7 +121,53 @@
   .zoom-hint{position:absolute;bottom:8px;right:10px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.35);pointer-events:none;background:rgba(0,0,0,0.45);padding:2px 6px;border-radius:4px}
 
   /* ── Responsive ── */
-  @media(max-width:780px){.item-body{grid-template-columns:1fr;grid-template-rows:auto auto}.slide-col{border-right:none;border-bottom:1px solid #EEF0F3}.carousel-wrap{min-height:260px}}
+  html,body{max-width:100%;overflow-x:hidden}
+
+  @media(max-width:780px){
+    .header{padding:16px 20px}
+    .header-title{font-size:15px}
+    .header-date{font-size:11px}
+
+    .instructions{padding:0 12px;margin-top:20px}
+    .instr-text{font-size:12px}
+
+    .container{padding:16px 12px 48px}
+    .section-row{margin:28px 0 12px}
+
+    .item-header{padding:11px 14px}
+    .item-title{font-size:13px}
+    .item-type{display:none}
+
+    /* Stack slide above legenda on mobile */
+    .item-body{display:flex;flex-direction:column}
+    .slide-col{border-right:none;border-bottom:1px solid #EEF0F3;width:100%}
+    .content-col{min-width:0;width:100%}
+
+    /* Legenda: break long hashtags and URLs */
+    .legenda-section{padding:14px 14px}
+    .legenda-text{
+      font-size:12px;line-height:1.75;
+      overflow-wrap:break-word;word-break:break-word;
+      max-width:100%
+    }
+
+    /* Controls */
+    .controls-section{padding:14px}
+    .radio-group{flex-direction:column}
+    .radio-option{min-width:auto;flex:none}
+
+    /* Slider controls — bigger tap area on mobile */
+    .sl-btn{width:40px;height:40px;font-size:22px}
+
+    /* Submit */
+    .submit-section{padding:24px 16px}
+    .btn-submit{width:100%;padding:14px}
+
+    footer{padding:16px 20px}
+
+    /* Lightbox full-width on mobile */
+    .lb-img{max-width:95vw;max-height:80vh}
+  }
 </style>
 </head>
 <body>
