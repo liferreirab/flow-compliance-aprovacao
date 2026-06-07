@@ -19,6 +19,8 @@
   .status-dot{width:7px;height:7px;border-radius:50%;background:#6EC6C0;animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .status-text{font-size:11px;font-weight:700;color:#6EC6C0;letter-spacing:1.2px;text-transform:uppercase}
+  .link-approved{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;font-weight:700;color:#6EC6C0;text-decoration:none;border:1px solid rgba(110,198,192,0.4);border-radius:20px;padding:5px 14px;transition:all .2s}
+  .link-approved:hover{background:rgba(110,198,192,0.14)}
 
   /* ── Instructions ── */
   .instructions{max-width:1020px;margin:32px auto 0;padding:0 32px}
@@ -187,6 +189,7 @@
     <div class="header-title">Aprovação de Conteúdo — Junho 2026</div>
     <div class="header-date">Enviado em 06/06/2026</div>
     <div class="status-pill"><div class="status-dot"></div><span class="status-text">Aguardando Aprovação</span></div>
+    <br><a href="aprovados.html" class="link-approved" id="link-approved" style="display:none">📋 Ver conteúdos avaliados</a>
   </div>
 </header>
 
@@ -557,7 +560,7 @@ Fale com a Flow antes de assinar o próximo contrato com o governo.
 
 <!-- Footer -->
 <footer>
-  <span class="footer-text">Flow Compliance · Aprovação de Conteúdo · Junho 2026</span>
+  <span class="footer-text">Produzido para Flow Compliance por Eli Fátima</span>
   <img src="slides-r2/logo-flow.png" style="height:28px;opacity:0.5;filter:brightness(0) invert(1)" alt="Flow Compliance">
 </footer>
 
@@ -608,6 +611,7 @@ window.addEventListener('load', function () {
   initSlider('r1',  9);
   initSlider('nr1', 7);
   initSlider('lic', 7);
+  updateApprovedLink();
 });
 
 // ─── Approval controls ───
@@ -638,6 +642,49 @@ function selectOption(blockId, opt) {
   updateProgress();
 }
 
+// ─── Persisted "approved" archive (localStorage) ───
+const STORAGE_KEY = 'flow_r2_aprovados';
+const TOTAL_ITEMS = document.querySelectorAll('[data-reviewable]').length;
+
+function getArchive() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return []; }
+}
+function saveArchive(list) { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+
+function updateApprovedLink() {
+  const link = document.getElementById('link-approved');
+  if (link) link.style.display = getArchive().length > 0 ? 'inline-flex' : 'none';
+}
+
+function archiveItem(blockId, isApproved) {
+  const block = document.getElementById(blockId);
+  if (!block) return;
+  const title = block.querySelector('.item-title').textContent.trim();
+  const type = block.querySelector('.item-type').textContent.trim();
+  const fb = block.querySelector('.feedback-ta');
+  const fbText = fb ? fb.value.trim() : '';
+  const imgEl = block.querySelector('.slide-item img, .single-img');
+  const thumbnail = imgEl ? imgEl.getAttribute('src') : '';
+
+  const list = getArchive();
+  list.push({
+    id: blockId, title, type,
+    status: isApproved ? 'APROVADO' : 'SOLICITAR AJUSTES',
+    feedback: fbText, thumbnail,
+    timestamp: new Date().toISOString()
+  });
+  saveArchive(list);
+
+  block.style.transition = 'opacity .35s ease, transform .35s ease, margin .35s ease';
+  block.style.opacity = '0';
+  block.style.transform = 'scale(0.97)';
+  setTimeout(() => {
+    block.remove();
+    updateProgress();
+    updateApprovedLink();
+  }, 360);
+}
+
 function sendItem(blockId) {
   const block = document.getElementById(blockId);
   const title = block.querySelector('.item-title').textContent.trim();
@@ -648,49 +695,39 @@ function sendItem(blockId) {
   const subject = encodeURIComponent('Avaliação Flow Compliance — ' + title.slice(0, 55));
   const body = encodeURIComponent('Olá,\n\n' + title + '\nAvaliação: ' + status + fbText + '\n\nAtenciosamente');
   window.location.href = 'mailto:eli@elifatima.com?subject=' + subject + '&body=' + body;
-  setTimeout(() => collapseItem(blockId, isApproved), 600);
-}
-
-function collapseItem(blockId, isApproved) {
-  const block = document.getElementById(blockId);
-  block.classList.add('sent');
-  const num = block.querySelector('.item-num');
-  if (num) { num.textContent = '✓'; num.style.cssText += ';background:rgba(110,198,192,0.18);color:#2a8f88'; }
-  const header = block.querySelector('.item-header');
-  if (header && !header.querySelector('.sent-badge')) {
-    const badge = document.createElement('span');
-    badge.className = 'sent-badge ' + (isApproved ? 'sb-approved' : 'sb-changes');
-    badge.textContent = isApproved ? '✓ Aprovado — Enviado' : '✎ Ajustes — Enviado';
-    header.appendChild(badge);
-  }
-  updateProgress();
+  setTimeout(() => archiveItem(blockId, isApproved), 550);
 }
 
 function updateProgress() {
-  const all = Array.from(document.querySelectorAll('[data-reviewable]'));
-  const total = all.length;
-  const sent = all.filter(b => b.classList.contains('sent')).length;
-  const ready = all.filter(b =>
-    !b.classList.contains('sent') &&
-    (b.classList.contains('is-approved') || b.classList.contains('is-changes'))
+  const remaining = Array.from(document.querySelectorAll('[data-reviewable]'));
+  const sentCount = TOTAL_ITEMS - remaining.length;
+  const ready = remaining.filter(b =>
+    b.classList.contains('is-approved') || b.classList.contains('is-changes')
   ).length;
-  const pct = total ? ((sent + ready) / total * 100) : 0;
+
+  const pct = TOTAL_ITEMS ? ((sentCount + ready) / TOTAL_ITEMS * 100) : 0;
   document.getElementById('progress-fill').style.width = pct + '%';
-  if (sent === total) {
-    document.getElementById('progress-text').textContent = 'Todos os itens foram enviados!';
-    document.getElementById('submit-sub').textContent = 'Todos os itens foram enviados. Obrigado!';
-  } else if (ready > 0) {
+
+  const btn = document.getElementById('btn-submit');
+
+  if (remaining.length === 0) {
+    document.getElementById('progress-text').textContent = 'Todos os ' + TOTAL_ITEMS + ' itens foram avaliados e enviados!';
+    document.getElementById('submit-sub').textContent = 'Tudo certo! Veja os itens enviados em "Ver conteúdos avaliados", no topo da página.';
+    btn.style.display = 'none';
+    return;
+  }
+
+  btn.style.display = '';
+  if (ready > 0) {
     document.getElementById('progress-text').textContent =
-      (sent > 0 ? sent + ' enviado(s) · ' : '') + ready + ' pronto(s) · ' + (total - sent - ready) + ' pendente(s)';
+      (sentCount > 0 ? sentCount + ' já enviado(s) · ' : '') + ready + ' pronto(s) · ' + (remaining.length - ready) + ' pendente(s)';
     document.getElementById('submit-sub').textContent =
       'Enviar ' + ready + (ready === 1 ? ' avaliação' : ' avaliações') + ' pendente(s) de uma vez';
   } else {
     document.getElementById('progress-text').textContent =
-      sent > 0 ? sent + ' de ' + total + ' enviado(s)' : '0 de ' + total + ' itens revisados';
-    document.getElementById('submit-sub').textContent =
-      sent === total ? 'Todos enviados!' : 'Avalie um item para poder enviar';
+      sentCount > 0 ? sentCount + ' de ' + TOTAL_ITEMS + ' enviado(s) · ' + remaining.length + ' restante(s)' : '0 de ' + TOTAL_ITEMS + ' itens revisados';
+    document.getElementById('submit-sub').textContent = 'Avalie um item para poder enviar';
   }
-  const btn = document.getElementById('btn-submit');
   btn.disabled = ready === 0;
   btn.textContent = ready > 0
     ? 'Enviar ' + ready + (ready === 1 ? ' avaliação' : ' avaliações') + ' por e-mail'
@@ -699,7 +736,7 @@ function updateProgress() {
 
 // ─── Submit all pending ───
 function submitAll() {
-  const toSend = Array.from(document.querySelectorAll('[data-reviewable]:not(.sent)')).filter(b =>
+  const toSend = Array.from(document.querySelectorAll('[data-reviewable]')).filter(b =>
     b.classList.contains('is-approved') || b.classList.contains('is-changes')
   );
   if (toSend.length === 0) return;
@@ -715,8 +752,8 @@ function submitAll() {
   const body = encodeURIComponent('Olá,\n\nSegue minha avaliação dos conteúdos:\n\n' + lines.join('\n\n') + '\n\nAtenciosamente');
   window.location.href = 'mailto:eli@elifatima.com?subject=' + subject + '&body=' + body;
   setTimeout(() => {
-    toSend.forEach(block => collapseItem(block.id, block.classList.contains('is-approved')));
-  }, 600);
+    toSend.forEach(block => archiveItem(block.id, block.classList.contains('is-approved')));
+  }, 550);
 }
 
 // ─── Lightbox ───
