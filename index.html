@@ -199,7 +199,7 @@
     <div class="instr-icon">💡</div>
     <div>
       <div class="instr-title">Como aprovar o conteúdo</div>
-      <div class="instr-text">Para os <strong>carrosseis</strong>: use as setas ‹ › para navegar entre os slides. Para <strong>ampliar</strong> qualquer imagem, clique nela. Avalie cada peça e clique em <strong>Aprovado</strong> ou <strong>Solicitar ajustes</strong>. Quando todos os itens estiverem revisados, o botão de envio será habilitado.</div>
+      <div class="instr-text">Para os <strong>carrosseis</strong>: use as setas ‹ › para navegar entre os slides. Para <strong>ampliar</strong> qualquer imagem, clique nela. Avalie cada peça e clique em <strong>Aprovado</strong> ou <strong>Solicitar ajustes</strong> — você pode enviar sua avaliação item por item (botão "Enviar esta avaliação") ou aos poucos pelo botão de envio no fim da página. Não precisa avaliar tudo de uma vez.</div>
     </div>
   </div>
 </div>
@@ -553,7 +553,7 @@ Fale com a Flow antes de assinar o próximo contrato com o governo.
     <p class="submit-sub" id="submit-sub">Avalie um item para poder enviar</p>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <p class="progress-text" id="progress-text">0 de 5 itens revisados</p>
-    <button class="btn-submit" id="btn-submit" onclick="submitAll()" disabled>Enviar aprovação por e-mail</button>
+    <button class="btn-submit" id="btn-submit" onclick="submitAll()" disabled>Enviar aprovação</button>
   </div>
 
 </div><!-- /container -->
@@ -694,18 +694,35 @@ function archiveItem(blockId, isApproved) {
 
 function isHidden(block) { return block.style.display === 'none'; }
 
+// ─── Centralized tracking via Formspree ───
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mdaveqav';
+
+function notifyFormspree(block) {
+  const title = block.querySelector('.item-title').textContent.trim();
+  const type = block.querySelector('.item-type').textContent.trim();
+  const isApproved = block.classList.contains('is-approved');
+  const fb = block.querySelector('.feedback-ta');
+  const fbText = fb ? fb.value.trim() : '';
+
+  fetch(FORMSPREE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      _subject: 'Avaliação — ' + title.slice(0, 60),
+      conteudo: title,
+      tipo: type,
+      avaliacao: isApproved ? 'APROVADO' : 'SOLICITAR AJUSTES',
+      ajustes: fbText || '(nenhum)',
+      enviado_em: new Date().toLocaleString('pt-BR')
+    })
+  }).catch(err => console.error('Falha ao notificar Formspree:', err));
+}
+
 function sendItem(blockId) {
   const block = document.getElementById(blockId);
-  const title = block.querySelector('.item-title').textContent.trim();
   const isApproved = block.classList.contains('is-approved');
-  const status = isApproved ? 'APROVADO' : 'SOLICITAR AJUSTES';
-  const fb = block.querySelector('.feedback-ta');
-  const fbText = fb && fb.value.trim() ? '\n\nAjustes solicitados:\n' + fb.value.trim() : '';
-  const subject = encodeURIComponent('Avaliação Flow Compliance — ' + title.slice(0, 55));
-  const body = encodeURIComponent('Olá,\n\n' + title + '\nAvaliação: ' + status + fbText + '\n\nAtenciosamente');
-  // Archive first — mailto navigation can blur the page before a setTimeout fires
+  notifyFormspree(block);
   archiveItem(blockId, isApproved);
-  window.location.href = 'mailto:eli@elifatima.com?subject=' + subject + '&body=' + body;
 }
 
 function updateProgress() {
@@ -740,8 +757,8 @@ function updateProgress() {
   }
   btn.disabled = ready === 0;
   btn.textContent = ready > 0
-    ? 'Enviar ' + ready + (ready === 1 ? ' avaliação' : ' avaliações') + ' por e-mail'
-    : 'Enviar aprovação por e-mail';
+    ? 'Enviar ' + ready + (ready === 1 ? ' avaliação' : ' avaliações')
+    : 'Enviar aprovação';
 }
 
 // ─── Submit all pending ───
@@ -750,19 +767,10 @@ function submitAll() {
     !isHidden(b) && (b.classList.contains('is-approved') || b.classList.contains('is-changes'))
   );
   if (toSend.length === 0) return;
-  const lines = toSend.map(block => {
-    const title = block.querySelector('.item-title').textContent.trim();
-    const isApproved = block.classList.contains('is-approved');
-    const status = isApproved ? 'APROVADO' : 'SOLICITAR AJUSTES';
-    const fb = block.querySelector('.feedback-ta');
-    const fbText = fb && fb.value.trim() ? '\nAjustes: ' + fb.value.trim() : '';
-    return title + ': ' + status + fbText;
+  toSend.forEach(block => {
+    notifyFormspree(block);
+    archiveItem(block.id, block.classList.contains('is-approved'));
   });
-  const subject = encodeURIComponent('Aprovação de Conteúdo — Flow Compliance — Junho 2026');
-  const body = encodeURIComponent('Olá,\n\nSegue minha avaliação dos conteúdos:\n\n' + lines.join('\n\n') + '\n\nAtenciosamente');
-  // Archive first — mailto navigation can blur the page before a setTimeout fires
-  toSend.forEach(block => archiveItem(block.id, block.classList.contains('is-approved')));
-  window.location.href = 'mailto:eli@elifatima.com?subject=' + subject + '&body=' + body;
 }
 
 // ─── Lightbox ───
