@@ -36,7 +36,9 @@
   .badge-approved{background:rgba(110,198,192,0.18);color:#2a8f88;border:1px solid rgba(110,198,192,0.35)}
   .badge-changes{background:rgba(212,100,42,0.12);color:#C05820;border:1px solid rgba(212,100,42,0.30)}
   .card-feedback{font-size:13px;color:rgba(26,43,56,0.65);background:#FAFBFC;border-left:3px solid #D4642A;padding:11px 14px;border-radius:0 8px 8px 0;white-space:pre-wrap;word-break:break-word}
-  .card-time{font-size:11px;color:rgba(26,43,56,0.35);margin-top:auto;padding-top:2px}
+  .card-time{font-size:11px;color:rgba(26,43,56,0.35);padding-top:2px}
+  .btn-undo{align-self:flex-start;margin-top:6px;background:none;border:1px solid rgba(212,100,42,0.4);color:#C05820;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all .2s}
+  .btn-undo:hover{background:rgba(212,100,42,0.08)}
 
   footer{background:#2D4A5A;padding:24px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
   .footer-text{font-size:12px;color:rgba(255,255,255,0.42)}
@@ -76,6 +78,7 @@ const STORAGE_KEY = 'flow_r2_aprovados';
 function getArchive() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return []; }
 }
+function saveArchive(list) { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
 
 function fmtDate(iso) {
   const d = new Date(iso);
@@ -86,17 +89,22 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const archive = getArchive();
 const wrap = document.getElementById('list');
 
-if (archive.length === 0) {
-  wrap.innerHTML =
-    '<div class="empty-state">' +
-      '<div class="empty-icon">📭</div>' +
-      '<p class="empty-text">Nenhum conteúdo avaliado ainda.<br>Volte para a página de aprovação para revisar os itens — assim que enviar uma avaliação, ela aparece aqui.</p>' +
-      '<a href="index.html" class="empty-link">Ir para a aprovação →</a>' +
-    '</div>';
-} else {
+function renderList() {
+  const archive = getArchive();
+  wrap.innerHTML = '';
+
+  if (archive.length === 0) {
+    wrap.innerHTML =
+      '<div class="empty-state">' +
+        '<div class="empty-icon">📭</div>' +
+        '<p class="empty-text">Nenhum conteúdo avaliado ainda.<br>Volte para a página de aprovação para revisar os itens — assim que enviar uma avaliação, ela aparece aqui.</p>' +
+        '<a href="index.html" class="empty-link">Ir para a aprovação →</a>' +
+      '</div>';
+    return;
+  }
+
   archive.slice().reverse().forEach(item => {
     const isApproved = item.status === 'APROVADO';
     const card = document.createElement('div');
@@ -115,10 +123,21 @@ if (archive.length === 0) {
         '</div>' +
         (item.feedback ? '<div class="card-feedback">' + escapeHtml(item.feedback) + '</div>' : '') +
         '<div class="card-time">Enviado em ' + fmtDate(item.timestamp) + '</div>' +
+        '<button class="btn-undo" data-id="' + item.id + '">&#8634;&nbsp; Cancelar avaliação — voltar para revisão</button>' +
       '</div>';
+    card.querySelector('.btn-undo').addEventListener('click', () => undoApproval(item.id));
     wrap.appendChild(card);
   });
 }
+
+function undoApproval(id) {
+  if (!confirm('Cancelar esta avaliação? O item volta para a lista de revisão na página de aprovação.')) return;
+  const list = getArchive().filter(item => item.id !== id);
+  saveArchive(list);
+  renderList();
+}
+
+renderList();
 </script>
 </body>
 </html>

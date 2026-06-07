@@ -608,11 +608,11 @@ function _applyTranslate(id, total) {
 }
 
 window.addEventListener('load', function () {
-  // Remove any items already archived in a previous visit (e.g. if the
-  // mailto navigation interrupted the removal animation last time)
+  // Hide any items already archived (sent previously, or in a previous visit).
+  // Items stay in the DOM so they can reappear if the client cancels the approval.
   getArchive().forEach(item => {
     const block = document.getElementById(item.id);
-    if (block) block.remove();
+    if (block) block.style.display = 'none';
   });
 
   initSlider('r1',  9);
@@ -686,11 +686,13 @@ function archiveItem(blockId, isApproved) {
   block.style.opacity = '0';
   block.style.transform = 'scale(0.97)';
   setTimeout(() => {
-    block.remove();
+    block.style.display = 'none';
     updateProgress();
     updateApprovedLink();
   }, 360);
 }
+
+function isHidden(block) { return block.style.display === 'none'; }
 
 function sendItem(blockId) {
   const block = document.getElementById(blockId);
@@ -707,7 +709,7 @@ function sendItem(blockId) {
 }
 
 function updateProgress() {
-  const remaining = Array.from(document.querySelectorAll('[data-reviewable]'));
+  const remaining = Array.from(document.querySelectorAll('[data-reviewable]')).filter(b => !isHidden(b));
   const sentCount = TOTAL_ITEMS - remaining.length;
   const ready = remaining.filter(b =>
     b.classList.contains('is-approved') || b.classList.contains('is-changes')
@@ -745,7 +747,7 @@ function updateProgress() {
 // ─── Submit all pending ───
 function submitAll() {
   const toSend = Array.from(document.querySelectorAll('[data-reviewable]')).filter(b =>
-    b.classList.contains('is-approved') || b.classList.contains('is-changes')
+    !isHidden(b) && (b.classList.contains('is-approved') || b.classList.contains('is-changes'))
   );
   if (toSend.length === 0) return;
   const lines = toSend.map(block => {
